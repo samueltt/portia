@@ -35,9 +35,9 @@ class sdist_command(sdist):
 
 
 install_requires = ['Scrapy', 'scrapely', 'loginform', 'lxml', 'jsonschema',
-                    'dateparser', 'scrapyjs', 'page_finder', 'six']
+                    'dateparser', 'scrapy-splash', 'page_finder', 'six']
 extras = {
-    'tests': ['nose', 'nose-timer'],
+    'tests': ['nose', 'nose-timer', 'doctest-ignore-unicode', 'tox'],
     'clustering': ['page_clustering']
 }
 
@@ -67,5 +67,7 @@ setup(name='slybot',
           'Operating System :: OS Independent',
           'Programming Language :: Python',
           'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.7'
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.4',
       ])

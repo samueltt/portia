@@ -33,7 +33,7 @@ before_script:
 - sleep 3 # give xvfb some time to start
 script:
 - cd ./slybot
-- nosetests --with-doctest
+- sudo -E tox
 - cd ../slyd
 - npm test
 - nosetests --with-doctest

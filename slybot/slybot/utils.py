@@ -5,7 +5,7 @@ import re
 
 from collections import OrderedDict
 
-from scrapely.htmlpage import HtmlPage, HtmlTag, HtmlTagType
+from scrapely.htmlpage import HtmlPage, HtmlTagType
 from scrapy.utils.misc import load_object
 
 
@@ -261,7 +261,8 @@ def serialize_tag(tag):
 
 
 def _must_add_tagid(element):
-    return (isinstance(element, HtmlTag) and
+    return (hasattr(element, 'tag_type') and
+            hasattr(element, 'tag') and
             element.tag_type != CLOSE_TAG and
             element.tag != 'ins')
 
@@ -289,7 +290,7 @@ def add_tagids(source):
     """
     Applies a unique attribute code number for each tag element in order to be
     identified later in the process of apply annotation"""
-    return _modify_tagids(source)
+    return _modify_tagids(source, True)
 
 
 def remove_tagids(source):

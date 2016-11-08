@@ -36,7 +36,7 @@ class Annotations(object):
         Perform any initialization needed for crawling using this plugin
         """
         self.logger = logger
-        templates = map(self._get_annotated_template, spec['templates'])
+        templates = list(map(self._get_annotated_template, spec['templates']))
 
         _item_template_pages = sorted((
             [t.get('scrapes'), dict_to_page(t, 'annotated_body'),
@@ -45,7 +45,8 @@ class Annotations(object):
         ), key=lambda x: x[0])
         self.item_classes = {}
         self.template_scrapes = {template.get('page_id'): template['scrapes']
-                                 for template in templates}
+                                 for template in templates
+                                 if template.get('scrapes')}
         if (settings.get('AUTO_PAGINATION') or
                 spec.get('links_to_follow') == 'auto'):
             self.html_link_extractor = PaginationExtractor()
@@ -69,7 +70,7 @@ class Annotations(object):
                 apply_extractors(item_descriptor, template_extractors,
                                  extractors)
                 descriptors[schema_name] = item_descriptor
-            descriptor = descriptors.values() or [{}]
+            descriptor = list(descriptors.values()) or [{}]
             descriptors['#default'] = descriptors.get(default, descriptor[0])
             self.schema_descriptors[template.page_id] = descriptors['#default']
             page_descriptor_pairs.append((template, descriptors, v))
@@ -163,7 +164,7 @@ class Annotations(object):
             try:
                 descriptor = self.schema_descriptors[template.id]
                 item_cls_name = self.template_scrapes[template.id]
-            except AttributeError:
+            except (AttributeError, KeyError):
                 descriptor = sorted(self.schema_descriptors.items())[0][1]
                 item_cls_name = sorted(self.template_scrapes.items())[0][1]
         item_cls = self.item_classes.get(item_cls_name)
@@ -301,7 +302,8 @@ class Annotations(object):
                 yield request
 
     def handle_xml(self, response, seen):
-        _type = XML_APPLICATION_TYPE(response.headers.get('Content-Type', ''))
+        _type = XML_APPLICATION_TYPE(
+            response.headers.get('Content-Type', '').decode('utf-8'))
         _type = _type.groupdict()['type'] if _type else 'xml'
         try:
             link_extractor = create_linkextractor_from_specs({
