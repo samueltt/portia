@@ -220,7 +220,7 @@ def _annotation_key(a):
 def apply_annotations(annotations, target_page):
     inserts = defaultdict(list)
     numbered_html = add_tagids(target_page)
-    target = parse_html(numbered_html)
+    target = iter(parse_html(numbered_html))
     output, tag_stack = [], []
 
     element = next(target)

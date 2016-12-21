@@ -10,15 +10,15 @@ BAD_CSS = re.compile(r'''(-moz-binding|expression\s*\(|javascript\s*:)''', re.I)
 
 # https://html.spec.whatwg.org/multipage/syntax.html#character-references
 # http://stackoverflow.com/questions/18689230/why-do-html-entity-names-with-dec-255-not-require-semicolon
-_ENTITY_RE = re.compile("&#?\w+;", re.I)
+_ENTITY_RE = re.compile(r'(&#?x?\w+)(?:;)?', re.I)
 def _replace_entity(match):
-    entity = match.group(0)
+    entity = match.group(0).strip(';')
     if entity[:2] == "&#":
         # character reference
-        if entity[:3] == "&#x":
-            return six.unichr(int(entity[3:-1], 16))
+        if entity[:3] in ("&#x", "&#X"):
+            return six.unichr(int(entity[3:], 16))
         else:
-            return six.unichr(int(entity[2:-1]))
+            return six.unichr(int(entity[2:]))
     else:
         # named entity
         try:
@@ -48,7 +48,7 @@ def wrap_url(url, tabid, base=None):
         return url  # TODO: process CSS inside data: urls
     if parsed.scheme not in ('http', 'https', 'ftp'):
         return 'data:text/plain,invalid_scheme'
-    
+
     return "/proxy?" + urllib.urlencode({
         "url": unescape(url),
         "referer": referer,

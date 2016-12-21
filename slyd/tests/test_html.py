@@ -11,7 +11,7 @@ JAVASCRIPT_URLS = (
     "jav&#x09;ascript:alert();",
     "jav&#x0A;ascript:alert();",
     "jav&#x0D;ascript:alert();",
-    'java\0script:alert()>";',
+    'java\0script:alert();',
     " &#14;  javascript:alert();",
 )
 
