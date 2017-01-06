@@ -102,7 +102,7 @@ def iterlinks(htmlpage):
     >>> list(iterlinks(p))
     [Link(url='http://www.example.com/page.html?productid=24', text=None, fragment='', nofollow=False)]
 
-    Dont generate link when target is an anchor
+    Do not generate link when target is an anchor
     >>> p = HtmlPage("http://www.example.com", body=u"<html><a href='#section1' >")
     >>> list(iterlinks(p))
     []
