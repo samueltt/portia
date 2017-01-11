@@ -3,7 +3,9 @@ import os
 import json
 import re
 
+from os.path import isdir, exists, join
 from collections import OrderedDict
+from itertools import chain
 
 from scrapely.htmlpage import HtmlPage, HtmlTag, HtmlTagType
 from scrapy.utils.misc import load_object
@@ -28,43 +30,16 @@ def iter_unique_scheme_hostname(urls):
 
 
 def open_project_from_dir(project_dir):
-    specs = {"spiders": {}}
+    specs = {"spiders": SpiderLoader(project_dir)}
     try:
-        with open(os.path.join(project_dir, "project.json")) as f:
+        with open(join(project_dir, "project.json")) as f:
             specs["project"] = json.load(f)
     except IOError:
         specs["project"] = {}
-    with open(os.path.join(project_dir, "items.json")) as f:
+    with open(join(project_dir, "items.json")) as f:
         specs["items"] = json.load(f)
-    with open(os.path.join(project_dir, "extractors.json")) as f:
+    with open(join(project_dir, "extractors.json")) as f:
         specs["extractors"] = json.load(f)
-
-    spec_base = os.path.join(project_dir, "spiders")
-    for fname in os.listdir(spec_base):
-        if fname.endswith(".json"):
-            spider_name = os.path.splitext(fname)[0]
-            with open(os.path.join(spec_base, fname)) as f:
-                try:
-                    spec = json.load(f)
-                    template_names = spec.get("template_names")
-                    if template_names:
-                        templates = load_external_templates(spec_base,
-                                                            spider_name,
-                                                            template_names)
-                        spec.setdefault("templates", []).extend(templates)
-                    else:
-                        templates = []
-                        for template in spec.get('templates', []):
-                            if template.get('version', '') < '0.13.0':
-                                templates.append(template)
-                            else:
-                                templates.append(_build_sample(template))
-                    specs["spiders"][spider_name] = spec
-                except ValueError as e:
-                    raise ValueError(
-                        "Error parsing spider (invalid JSON): %s: %s" %
-                        (fname, e)
-                    )
     return specs
 
 
@@ -73,18 +48,22 @@ def load_external_templates(spec_base, spider_name, template_names):
     `spider_name`.
     """
     for name in template_names:
-        with open(os.path.join(spec_base, spider_name, name + ".json")) as f:
-            sample = json.load(f)
-            samples_sub_dir = os.path.join(spec_base, spider_name, name)
-            if (os.path.exists(samples_sub_dir) and
-                    os.path.isdir(samples_sub_dir)):
-                for fname in os.listdir(samples_sub_dir):
-                    if fname.endswith('.html'):
-                        with open(os.path.join(samples_sub_dir, fname)) as f:
+        sample_dir = join(spec_base, spider_name, name)
+        sample_path = '%s.json' % sample_dir
+        try:
+            with open(sample_path) as f:
+                sample = json.load(f)
+                if (exists(sample_dir) and isdir(sample_dir)):
+                    for fname in os.listdir(sample_dir):
+                        if not fname.endswith('.html'):
+                            continue
+                        with open(join(sample_dir, fname)) as f:
                             attr = fname[:-len('.html')]
                             sample[attr] = read(f)
-            version = sample.get('version', '')
-            yield _build_sample(sample, legacy=version < '0.13.0')
+                version = sample.get('version', '')
+                yield _build_sample(sample, legacy=version < '0.13.0')
+        except IOError:
+            continue
 
 
 def read(fp, encoding='utf-8'):
@@ -296,3 +275,58 @@ def remove_tagids(source):
     """remove from the given page, all tagids previously added by add_tagids()
     """
     return _modify_tagids(source, False)
+
+
+class SpiderLoader(object):
+    def __init__(self, base):
+        self.spider_dir = join(base, "spiders")
+        self.spider_names = {
+            s[:-len('.json')] for s in os.listdir(self.spider_dir)
+            if s.endswith('.json')
+        }
+        self._spiders = {}
+
+    def __getitem__(self, key):
+        if key not in self.spider_names:
+            raise KeyError('The spider "{}" does not exist'.format(key))
+        if key not in self._spiders:
+            self._spiders[key] = self.load_spider(key)
+        return self._spiders[key]
+
+    def load_spider(self, spider_name):
+        with open(join(self.spider_dir, '%s.json' % spider_name)) as f:
+            try:
+                spec = json.load(f)
+                template_names = spec.get("template_names")
+                if template_names:
+                    templates = load_external_templates(self.spider_dir,
+                                                        spider_name,
+                                                        template_names)
+                    spec.setdefault("templates", []).extend(templates)
+                else:
+                    templates = []
+                    for template in spec.get('templates', []):
+                        if template.get('version', '') < '0.13.0':
+                            templates.append(template)
+                        else:
+                            templates.append(_build_sample(template))
+                    spec['templates'] = templates
+                return spec
+            except ValueError as e:
+                raise ValueError(
+                    "Error parsing spider (invalid JSON): %s: %s" %
+                    (spider_name, e)
+                )
+
+    def keys(self):
+        for spider_name in self.spider_names:
+            yield spider_name
+
+    def items(self):
+        spiders = chain(self._spiders, self.spider_names - set(self._spiders))
+        for spider_name in spiders:
+            yield spider_name, self[spider_name]
+
+    def values(self):
+        for _, spider in self.items():
+            yield spider
